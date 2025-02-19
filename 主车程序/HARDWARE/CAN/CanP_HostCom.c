@@ -233,7 +233,7 @@ void CanP_Host_Main(void)
 				case 1:					
 					while(FifoDrv_ReadOne(&Fifo_WifiRx,&t8))
 					{
-						daozha_open();
+//						daozha_open();
 						Can_WifiRx_Save(t8);
 					}
 					break;

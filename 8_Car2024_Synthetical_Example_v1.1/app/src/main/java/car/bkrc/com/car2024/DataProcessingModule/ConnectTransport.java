@@ -161,7 +161,7 @@ public class ConnectTransport {
                     msg.what = 1;
                     msg.obj = rbyte;
                     reHandler.sendMessage(msg);
-                    Log.e("AUTO", "上传协议: " + Arrays.toString(rbyte));
+//                    Log.e("AUTO", "上传协议: " + Arrays.toString(rbyte));
                 } catch (SocketException ignored) {
                     EventBus.getDefault().post(new DataRefreshBean(4));
                     destory();

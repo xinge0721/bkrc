@@ -60,17 +60,17 @@ uint8_t Rx_Flag ;
 
 void Normal_data(void)	      // 正常接收8字节控制指令—wifi
 {
-	uint8_t sum = 0;
 
-	if(Wifi_Rx_Buf[8] == 0xBB)	  // 判断包尾
+	if(Wifi_Rx_Buf[7] == 0xBB)	  // 判断包尾
 	{					
 		//主指令与三位副指令求和校验
 		//注意：在求和溢出时应该对和做256取余。
 		//sum是校验位
-		sum = (Wifi_Rx_Buf[2]+Wifi_Rx_Buf[3]+Wifi_Rx_Buf[4]+Wifi_Rx_Buf[5]+Wifi_Rx_Buf[6])%256;
+		uint8_t sum = (Wifi_Rx_Buf[2]+Wifi_Rx_Buf[3]+Wifi_Rx_Buf[4]+Wifi_Rx_Buf[5])%256;
 		
-		if(sum == Wifi_Rx_Buf[7])//Wifi_Rx_Buf[6]是平板电脑向主车或者从车发送的第七位校验位，校验位如果相等，则置1，代表发送给主车或者从车的指令正确
+		if(sum == Wifi_Rx_Buf[6])//Wifi_Rx_Buf[6]是平板电脑向主车或者从车发送的第七位校验位，校验位如果相等，则置1，代表发送给主车或者从车的指令正确
 		{
+			Send_WifiData_To_Fifo(Wifi_Rx_Buf,8);
 			Rx_Flag =1;
 		}
 		else
@@ -126,6 +126,7 @@ void Can_WifiRx_Check(void)  //wifi交互数据处理
 {
 	if(Wifi_Rx_flag)						//对协议进行判断,Wifi_Rx_flag是接收完成标志位，
 	{	
+		
 		 if(gt_get_sub(canu_wifi_rxtime) == 0)
 		 {
 			 if(Wifi_Rx_Buf[0]==0xFD)  
@@ -133,7 +134,7 @@ void Can_WifiRx_Check(void)  //wifi交互数据处理
 				 Send_ZigbeeData_To_Fifo( Wifi_Rx_Buf , (Wifi_Rx_num +1)); //将数据发送至ZigBee模块
 			 }
 			 else if(Wifi_Rx_Buf[0]==0x55)  //平板电脑向主车或者从车发送的数据包头
-			 {              
+			 { 
 				 Normal_data();  // 正常接收8字节控制指令(平板电脑向主从车发送的8字节指令)，并判断是否指令一致
 			 }
 //			 else
@@ -350,41 +351,37 @@ void Can_WifiRx_Check(void)  //wifi交互数据处理
 		
 		else if(Wifi_Rx_Buf[1] == 0x0B)
 		{
-				switch(Wifi_Rx_Buf[2]) 			//判断主指令
+				if(Wifi_Rx_Buf[2] == 0x10) 			//判断主指令
 			{
-					case 0x10:{
-						if(Wifi_Rx_Buf[3] == 0x00)
-						{
-						
-						}
-						else if (Wifi_Rx_Buf[3] == 0x01)
-						{
-								LED1 = !LED1;
-								TFT_Picture_Up('A');
-								TFT_Picture_Up('B');
-								TFT_Picture_Up('C');
-						}
-						else if (Wifi_Rx_Buf[3] == 0x02)
-						{
- 						}
-						else if (Wifi_Rx_Buf[3] == 0x03)
-						{
-						
-						}
-						
-						break;
+					if(Wifi_Rx_Buf[3] == 0x00)
+					{
+					
+					}
+					else if (Wifi_Rx_Buf[3] == 0x01)
+					{
+						LED1 = !LED1;
+						TFT_Picture_Down('A');
+						TFT_Picture_Down('B');
+						TFT_Picture_Down('C');
+					}
+					else if (Wifi_Rx_Buf[3] == 0x02)
+					{
+							LED1 = !LED1;
+						TFT_Picture_Down('A');
+						TFT_Picture_Down('B');
+						TFT_Picture_Down('C');
+					}
+					else if (Wifi_Rx_Buf[3] == 0x03)
+					{
+					
 					}
 						
-					case 0x20:break; 
-					case 0x21:break;
-					case 0x30:break;
-					case 0x40:break;
-					case 0x50:break;
 			}
 		}
 		
 		else if(Wifi_Rx_Buf[1] == 0x01)
 		{
+			LED1 = !LED1;
 			if(Wifi_Rx_Buf[3] == 0x00 == 0 && Wifi_Rx_Buf[4] == 0x00)
 			{
 				if(Wifi_Rx_Buf[2] == 0x01)//打开
@@ -507,12 +504,12 @@ void Can_ZigBeeRx_Check(void)
 					//从车请求主车开道闸，从车给主车发0x55,0x02,0x99,0x04,0x00,0x00,0x9D,0xBB，请求打开道闸
 					if ((Zigb_Rx_Buf[2] == 0x99) && (Zigb_Rx_Buf[3] == 0x04))
 					{
-						daozha_open();
-						delay_ms(100);
-						daozha_open();
-						delay_ms(100);
-						daoza_open_ack();//0x55,0x02,0x99,0x02,0x00,0x00,0x9B,0xbb
-						delay_ms(100);
+//						daozha_open();
+//						delay_ms(100);
+//						daozha_open();
+//						delay_ms(100);
+//						daoza_open_ack();//0x55,0x02,0x99,0x02,0x00,0x00,0x9B,0xbb
+//						delay_ms(100);
 					}
 					
 					//从车已经通过道闸,从车给主车发送0x55,0x02,0x99,0x05,0x00,0x00,0x9E,0xBB，Stop_Flag = 0x0F
