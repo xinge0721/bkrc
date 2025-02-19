@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "org.opencv.test.openCVLibrary343-mergeDebugAndroidTestResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "G:\\bianchen\\zuoye\\8_Car2024_Synthetical_Example_v1.1\\openCVLibrary343\\build\\intermediates\\packaged_res\\debug\\values\\values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "9",
+                        "endColumns": "24",
+                        "endOffsets": "361"
+                    }
+                }
+            ]
+        }
+    ]
+}

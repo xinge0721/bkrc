@@ -1,0 +1,29 @@
+-- Merging decision tree log ---
+manifest
+ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:2:1-7:12
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:2:1-7:12
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:2:1-7:12
+	package
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:2:1-7:12
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+	android:versionName
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:4:7-34
+	xmlns:android
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:2:11-69
+	android:versionCode
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml:3:5-31
+uses-sdk
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+		ADDED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
+		INJECTED from G:\bianchen\zuoye\8_Car2024_Synthetical_Example_v1.1\openCVLibrary343\src\main\AndroidManifest.xml
