@@ -21,7 +21,6 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import car.bkrc.com.car2024.ActivityView.FirstActivity;
 import car.bkrc.com.car2024.FragmentView.LeftFragment;

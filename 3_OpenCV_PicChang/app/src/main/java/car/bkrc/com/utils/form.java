@@ -1,8 +1,11 @@
-package car.bkrc.com.car2024.mytest;
+package car.bkrc.com.utils;
 
-import static car.bkrc.com.car2024.mytest.OpencvUtils.bitmapToMat;
+
+import static car.bkrc.com.utils.OpencvUtils.bitmapToMat;
 
 import android.graphics.Bitmap;
+import android.util.Log;
+import android.widget.ImageView;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -101,15 +104,18 @@ class ShapeColorDetector {
  */
 public class form {
     // 参数配置
-    private int binaryThreshold = 128; // 二值化的阈值，默认为128
+    private int binaryThreshold = 150; // 二值化的阈值，默认为128
     private double houghParam1 = 100; // 霍夫圆检测的第一个参数（Canny边缘检测的高阈值）
-    private double houghParam2 = 30; // 霍夫圆检测的第二个参数（累加器阈值）
-    private int houghMinRadius = 10; // 霍夫圆检测的最小半径
-    private int houghMaxRadius = 300; // 霍夫圆检测的最大半径
-    private double minContourArea = 500; // 最小轮廓面积，过滤掉面积过小的轮廓
+    private double houghParam2 = 175; // 霍夫圆检测的第二个参数（累加器阈值）
+    private int houghMinRadius = 0; // 霍夫圆检测的最小半径
+    private int houghMaxRadius = 0; // 霍夫圆检测的最大半径
+    private double minContourArea = 1000; // 最小轮廓面积，过滤掉面积过小的轮廓
     private Rect roi = null; // 感兴趣区域（ROI），用于限制检测范围
     private Mat debugImage; // 调试图像，用于绘制检测结果
 
+    static {
+        System.loadLibrary("opencv_java3");
+    }
     /**
      * 构造函数，加载OpenCV库。
      */
@@ -122,8 +128,13 @@ public class form {
      *
      * @param threshold 二值化的阈值，默认为128。
      */
-    public void setBinaryThreshold(int threshold) {
+    public void setBinaryThreshold(int threshold, ImageView imageView) {
         this.binaryThreshold = threshold;
+
+        Imgproc.threshold(blurred, binary, binaryThreshold, 255, Imgproc.THRESH_BINARY);
+
+        imageView.setImageBitmap(currentBitmap);
+
     }
 
     /**
@@ -140,7 +151,10 @@ public class form {
         houghMinRadius = minR;
         houghMaxRadius = maxR;
     }
-
+    public void setHoughParams(double p1, double p2) {
+        houghParam1 = p1;
+        houghParam2 = p2;
+    }
     /**
      * 设置感兴趣区域（ROI）。
      *
@@ -158,7 +172,23 @@ public class form {
     public void setMinContourArea(double area) {
         this.minContourArea = area;
     }
+    /**
+     * 设置霍夫圆检测的最小半径。
+     *
+     * @param radius 最小半径。
+     */
+    public void setHoughMinRadius(int radius) {
+        this.houghMinRadius = radius;
+    }
 
+    /**
+     * 设置霍夫圆检测的最大半径。
+     *
+     * @param radius 最大半径。
+     */
+    public void setHoughMaxRadius(int radius) {
+        this.houghMaxRadius = radius;
+    }
     /**
      * 检测图像中的多个形状。
      *
@@ -172,11 +202,12 @@ public class form {
         // 对输入图像应用ROI（如果设置了ROI）
         Mat processed = preprocessImage(applyROI(input));
 
-        // 检测圆形
-        detectCircles(processed, results);
-
         // 检测多边形
         detectPolygons(processed, results);
+
+        // 检测圆形
+//        detectCircles(processed, results);
+
 
         return results; // 返回检测到的形状名称列表
     }
@@ -243,7 +274,7 @@ public class form {
             int y = (int) Math.round(circle[1]); // 圆心y坐标
             int radius = (int) Math.round(circle[2]); // 半径
 
-            results.add("Circle"); // 将圆形添加到结果列表
+            results.add("圆形"); // 将圆形添加到结果列表
 
             // 屏蔽圆形区域以避免重复检测
             Imgproc.circle(binary, new Point(x, y), radius, new Scalar(0), -1);
@@ -305,19 +336,21 @@ public class form {
         int vertexCount = approx.toArray().length; // 获取顶点数量
         double circularity = calculateCircularity(approx); // 计算圆形度
 
-        if (circularity > 0.85 && vertexCount > 8) { // 如果是圆形
+        if (circularity > 0.9 && vertexCount > 8.5) { // 如果是圆形
             return "Circle";
         }
-
         switch (vertexCount) { // 根据顶点数量判断形状
             case 3:
-                return verifyTriangle(approx) ? "Triangle" : "Unknown"; // 验证是否为三角形
+                Log.d("识别结果是","三角形");
+                return verifyTriangle(approx) ? "Triangle" : "三角形"; // 验证是否为三角形
             case 4:
-                return verifyQuadrilateral(approx) ? "Rectangle" : "Quadrilateral"; // 验证是否为矩形
+                Log.d("识别结果是","矩形");
+                return verifyQuadrilateral(approx) ? "Rectangle" : "矩形"; // 验证是否为矩形
             case 5:
-                return isPentagram(approx) ? "Pentagram" : "Unknown"; // 验证是否为五角星
+                Log.d("识别结果是","五角星");
+                return isPentagram(approx) ? "Pentagram" : "五角星"; // 验证是否为五角星
             default:
-                return "Polygon-" + vertexCount; // 其他多边形
+                return ""; // 其他多边形
         }
     }
 

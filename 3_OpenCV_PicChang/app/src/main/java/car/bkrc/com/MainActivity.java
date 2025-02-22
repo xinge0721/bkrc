@@ -1,143 +1,181 @@
 package car.bkrc.com;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.SeekBar;
-import android.widget.Spinner;
 import android.widget.TextView;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import java.io.ByteArrayOutputStream;
+import android.widget.Toast;
+
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+
+import car.bkrc.com.utils.form;
 
 public class MainActivity extends AppCompatActivity {
 
-    static {
-        if (!OpenCVLoader.initDebug()) {
-            System.out.println("OpenCV not loaded");
-        } else {
-            System.out.println("OpenCV loaded");
-        }
-    }
-
+    private static final int PICK_IMAGE_REQUEST = 1;
     private ImageView imageView;
-    private SeekBar thresholdSeekBar;
-    private TextView thresholdValueText;
-    private Spinner colorSpinner;
-    private Button saveButton;
-    private Mat originalImage;
-    private int currentThreshold = 100;
-    private Map<String, Integer> colorThresholds = new HashMap<>();
+    private TextView resultTextView;
+    private form formDetector;
+    private Bitmap currentBitmap;
 
+    // 参数默认值
+    private int binaryThreshold = 150;
+    private double houghParam1 = 100;
+    private double houghParam2 = 175;
+    private double minContourArea = 1000;
+    private int houghMinRadius = 0;
+    private int houghMaxRadius = 0;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        formDetector = new form();
         imageView = findViewById(R.id.imageView);
-        thresholdSeekBar = findViewById(R.id.thresholdSeekBar);
-        thresholdValueText = findViewById(R.id.thresholdValueText);
-        colorSpinner = findViewById(R.id.colorSpinner);
-        saveButton = findViewById(R.id.saveButton);
+        resultTextView = findViewById(R.id.resultTextView);
 
-        // Set up the spinner with color options
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
-                R.array.colors_array, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        colorSpinner.setAdapter(adapter);
+        setupSeekBars();
+        setupButtons();
+    }
+    private Button btnClear;
 
-        // Copy the sample image from assets to internal storage
-        copyAssetToInternalStorage("sample_image.jpg", "sample_image.jpg");
+    private void setupSeekBars() {
+        SeekBar sbThreshold = findViewById(R.id.sbThreshold);
+        SeekBar sbParam1 = findViewById(R.id.sbParam1);
+        SeekBar sbParam2 = findViewById(R.id.sbParam2);
+        SeekBar sbMinContourArea = findViewById(R.id.sbMinContourArea);
+        SeekBar sbMinRadius = findViewById(R.id.sbMinRadius);
+        SeekBar sbMaxRadius = findViewById(R.id.sbMaxRadius);
 
-        // Load the sample image
-        originalImage = Imgcodecs.imread(getFilesDir() + "/sample_image.jpg");
+        btnClear = findViewById(R.id.btnClear);
+        btnClear.setOnClickListener(v -> {
+            resultTextView.setText(""); // 清空识别结果
+            // 可选：同时清除图片显示
+            // imageView.setImageBitmap(null);
+            // currentBitmap = null;
+        });
+        // 初始化滑块位置
+        sbThreshold.setProgress(binaryThreshold);
+        sbParam1.setProgress((int) houghParam1);
+        sbParam2.setProgress((int) houghParam2);
+        sbMinContourArea.setProgress((int) minContourArea);
+        sbMinRadius.setProgress(houghMinRadius);
+        sbMaxRadius.setProgress(houghMaxRadius);
 
-        // Initialize the image view with the original image
-        updateImageView(originalImage);
-
-        thresholdSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        // 阈值滑块监听
+        sbThreshold.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                currentThreshold = progress;
-                thresholdValueText.setText("Threshold: " + currentThreshold);
-                processImageWithThreshold(currentThreshold);
+                formDetector.setBinaryThreshold(progress,R.id.imageView);
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        saveButton.setOnClickListener(new View.OnClickListener() {
+        // 霍夫参数1监听
+        sbParam1.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onClick(View v) {
-                String selectedColor = colorSpinner.getSelectedItem().toString();
-                colorThresholds.put(selectedColor, currentThreshold);
-                // Optionally, you can save these thresholds to a file or database here
-                // For now, we'll just print them to logcat
-                StringBuilder sb = new StringBuilder("Saved Thresholds:\n");
-                for (Map.Entry<String, Integer> entry : colorThresholds.entrySet()) {
-                    sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-                }
-                System.out.println(sb.toString());
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                houghParam1 = progress;
+                formDetector.setHoughParams(houghParam1, houghParam2);
             }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Process the image with the initial threshold
-        processImageWithThreshold(currentThreshold);
+        // 霍夫参数2监听
+        sbParam2.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                houghParam2 = progress;
+                formDetector.setHoughParams(houghParam1, houghParam2);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        // 最小轮廓面积滑块监听
+        sbMinContourArea.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                formDetector.setMinContourArea(progress);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        // 霍夫最小半径滑块监听
+        sbMinRadius.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                formDetector.setHoughMinRadius(progress);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        // 霍夫最大半径滑块监听
+        sbMaxRadius.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                houghMaxRadius = progress;
+                formDetector.setHoughParams(houghParam1, houghParam2, houghMinRadius, houghMaxRadius);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
     }
 
-    private void copyAssetToInternalStorage(String assetFileName, String destinationPath) {
-        try {
-            InputStream inputStream = getAssets().open(assetFileName);
-            OutputStream outputStream = openFileOutput(destinationPath, MODE_PRIVATE);
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, length);
+    private void setupButtons() {
+        // 选择图片按钮
+        Button btnSelect = findViewById(R.id.selectImageButton);
+        btnSelect.setOnClickListener(v -> openImagePicker());
+
+        // 识别按钮
+        Button btnDetect = findViewById(R.id.btnDetect);
+        btnDetect.setOnClickListener(v -> {
+            if (currentBitmap != null) {
+                detectAndDisplayResults(currentBitmap);
+            } else {
+                Toast.makeText(this, "请先选择图片", Toast.LENGTH_SHORT).show();
             }
-            inputStream.close();
-            outputStream.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+        });
+    }
+
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
+            Uri imageUri = data.getData();
+            try {
+                currentBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+                imageView.setImageBitmap(currentBitmap);
+            } catch (IOException e) {
+                e.printStackTrace();
+                Toast.makeText(this, "图片加载失败", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
-    private void updateImageView(Mat mat) {
-        MatOfByte buffer = new MatOfByte();
-        Imgcodecs.imencode(".jpg", mat, buffer);
-        byte[] byteArray = buffer.toArray();
-        Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
-        imageView.setImageBitmap(bitmap);
-    }
-
-    private void processImageWithThreshold(int threshold) {
-        Mat gray = new Mat();
-        Mat blurred = new Mat();
-        Mat binary = new Mat();
-
-        Imgproc.cvtColor(originalImage, gray, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.GaussianBlur(gray, blurred, new Size(5, 5), 0);
-        Imgproc.threshold(blurred, binary, threshold, 255, Imgproc.THRESH_BINARY);
-
-        // Update the image view with the processed image
-        updateImageView(binary);
+    private void detectAndDisplayResults(Bitmap bitmap) {
+        new Thread(() -> {
+            final List<String> results = formDetector.detectMultiple(bitmap);
+            runOnUiThread(() -> resultTextView.setText("识别结果：" + results.toString()));
+        }).start();
     }
 }

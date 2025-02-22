@@ -16,8 +16,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
-import com.huawei.hmf.tasks.OnFailureListener;
-import com.huawei.hmf.tasks.OnSuccessListener;
 import com.huawei.hmf.tasks.Task;
 import com.huawei.hms.mlsdk.common.MLFrame;
 import com.huawei.hms.mlsdk.dsc.MLDocumentSkewCorrectionAnalyzer;
@@ -49,12 +47,14 @@ import car.bkrc.com.car2024.Utils.OtherUtil.ShapeRecognizeUtil;
 import car.bkrc.com.car2024.Utils.PicDisposeUtils.CarPlate;
 import car.bkrc.com.car2024.Utils.PicDisposeUtils.QR_Recognition;
 import car.bkrc.com.car2024.Utils.PicDisposeUtils.TrafficUtils;
+import car.bkrc.com.car2024.mytest.myOpencv;
+import car.bkrc.com.car2024.mytest.form;
 
 /**
  * 图像处理控制页面
  */
 public class PicInformationProcess extends Fragment implements View.OnClickListener {
-    myOpencv myOpencv = new myOpencv();
+    car.bkrc.com.car2024.mytest.myOpencv myOpencv = new myOpencv();
 
 
     // 识别结果文本
@@ -144,12 +144,16 @@ public class PicInformationProcess extends Fragment implements View.OnClickListe
                 picrec_iv.setImageBitmap(picBitmap);
                 break;
             case R.id.graphic_shape_btn:
+                form form = new form();
                 // 处理图形形状识别点击事件的代码
-                String str= myOpencv.detect(picBitmap);
-                    if((str == null || str.trim().isEmpty()))
+                List<String> str= form.detectMultiple(picBitmap);
+                    if(str == null)
                         picrectext_tv.setText("没有识别到");
                     else
+                    {
                         picrectext_tv.setText("识别结果为："+str);
+                        str.clear();
+                    }
                 break;
             case R.id.opencv_shape_btn:
                 // 处理边缘检测点击事件
