@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scaleType="centerCrop"
+        android:adjustViewBounds="true"/>
+
+    <SeekBar
+        android:id="@+id/thresholdSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:min="50"
+        android:max="255"
+        android:progress="100"
+        android:layout_below="@id/imageView"
+        android:layout_marginTop="16dp"/>
+
+    <TextView
+        android:id="@+id/thresholdValueText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Threshold: 100"
+        android:layout_below="@id/thresholdSeekBar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"/>
+
+    <Spinner
+        android:id="@+id/colorSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/thresholdValueText"
+        android:layout_marginTop="16dp"/>
+
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save Threshold"
+        android:layout_below="@id/colorSpinner"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"/>
+</RelativeLayout>

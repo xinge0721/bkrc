@@ -8,7 +8,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
-import android.util.Log;
 import android.widget.ImageView;  // 导入ImageView类，用于显示图像
 
 
@@ -24,315 +23,355 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Moments;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * OpencvUtils 是一个工具类，用于处理图像的各种操作，包括二值化、颜色识别、图像转换、膨胀、腐蚀、边缘检测等。
+ */
 class OpencvUtils {
-
     /**
-     * 将Bitmap进行二值化
-     * */
-    public static Mat matThreshold(Mat src, int min, int max){
-
-        if(src == null){
+     * 将输入的图像进行二值化处理。
+     * 二值化是一种常见的图像处理技术，将图像中的像素值分为两个类别（通常是黑白）。
+     * @param src 输入的图像（Mat对象）。
+     * @param min 阈值下限，低于此值的像素会被设置为0。
+     * @param max 阈值上限，高于此值的像素会被设置为指定的最大值。
+     * @return 返回二值化后的图像（Mat对象）。
+     * @throws NullPointerException 如果输入的图像对象为空，则抛出异常。
+     */
+    public static Mat matThreshold(Mat src, int min, int max) {
+        if (src == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
 
+        // 创建一个新的Mat对象用于存储灰度图像
         Mat grayMat = new Mat();
-        //先将图像进行灰度化
-        Imgproc.cvtColor(src,grayMat,Imgproc.COLOR_BGR2GRAY);
 
-        //二值化图像
+        // 将输入图像转换为灰度图像
+        Imgproc.cvtColor(src, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        // 创建一个新的Mat对象用于存储二值化结果
         Mat binary = new Mat();
 
-        //将灰度化的图像进行颜色处理
-        Imgproc.threshold(grayMat,binary,min,max,Imgproc.THRESH_BINARY);
-        return binary;
+        // 对灰度图像进行二值化处理
+        Imgproc.threshold(grayMat, binary, min, max, Imgproc.THRESH_BINARY);
 
+        return binary; // 返回二值化后的图像
     }
 
-
     /**
-     * 将Bitmap 根据传入的HSV进行识别
-     * */
-    public static Mat matColorInRange(Mat src,int[] minHsv, int[] maxHsv){
-        if(src == null){
+     * 检测并提取图像中根据HSV筛选后的轮廓，并将结果绘制到指定的ImageView上。
+     *
+     * @param bitmap 输入的Bitmap图像。
+     * @param inrangeMat 已经经过HSV筛选的Mat对象（可选）。
+     * @param image_by 显示处理结果的ImageView控件。
+     */
+    private void updateCanny(Bitmap bitmap, Mat inrangeMat, ImageView image_by) {
+        if (bitmap != null) {  // 确保输入图像不为空
+            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
+
+            Mat q;  // 用于保存处理后的图像数据
+
+            // 如果提供了inrangeMat，则直接使用；否则从Bitmap转换为HSV格式后再处理
+            if (inrangeMat != null) {
+                q = OpencvUtils.matCannyRect(bcopy, inrangeMat);  // 使用Canny算法检测边缘并绘制最大轮廓
+            } else {
+                q = OpencvUtils.matCannyRect(bcopy, OpencvUtils.transferBitmapToHsvMat(bcopy));  // 先转换为HSV格式再进行Canny检测
+            }
+
+            Utils.matToBitmap(q, bcopy);  // 将处理后的Mat数据转换回Bitmap
+            image_by.setImageBitmap(bcopy);  // 将结果显示在ImageView中
+        }
+    }
+    /**
+     * 根据HSV颜色范围筛选图像中的特定颜色区域。
+     *
+     * @param src 输入的图像（Mat对象）。
+     * @param minHsv 最小HSV值数组，表示颜色范围的下限。
+     * @param maxHsv 最大HSV值数组，表示颜色范围的上限。
+     * @return 返回筛选后的二值图像（Mat对象），其中符合条件的区域为白色，其他区域为黑色。
+     * @throws NullPointerException 如果输入的图像对象为空，则抛出异常。
+     */
+    public static Mat matColorInRange(Mat src, int[] minHsv, int[] maxHsv) {
+        if (src == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
+
+        // 创建一个新的Mat对象用于存储HSV格式的图像
         Mat hsv = new Mat();
-        Imgproc.cvtColor(src,hsv,Imgproc.COLOR_BGR2HSV);
+
+        // 将输入图像从BGR格式转换为HSV格式
+        Imgproc.cvtColor(src, hsv, Imgproc.COLOR_BGR2HSV);
+
+        // 创建一个新的Mat对象用于存储筛选结果
         Mat out = new Mat();
-        Core.inRange(hsv,new Scalar(minHsv[0],minHsv[1],minHsv[2]),new Scalar(maxHsv[0],maxHsv[1],maxHsv[2]),out);
-        return out;
 
+        // 使用Core.inRange方法筛选出符合HSV范围的像素
+        Core.inRange(hsv, new Scalar(minHsv[0], minHsv[1], minHsv[2]),
+                new Scalar(maxHsv[0], maxHsv[1], maxHsv[2]), out);
 
+        return out; // 返回筛选后的图像
     }
 
     /**
-     * 将Bitmap图像转换为 BGR通道的图像
-     * */
-    public static Mat transferBitmapToHsvMat(Bitmap bitmap){
+     * 将Bitmap图像转换为BGR通道的图像。
+     *
+     * @param bitmap 输入的Bitmap图像。
+     * @return 返回转换后的BGR格式图像（Mat对象）。
+     * @throws NullPointerException 如果输入的Bitmap对象为空，则抛出异常。
+     */
+    public static Mat transferBitmapToHsvMat(Bitmap bitmap) {
         Mat src = new Mat();
-        if(bitmap == null){
+        if (bitmap == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
-        Utils.bitmapToMat(bitmap,src);
+
+        // 将Bitmap转换为Mat对象
+        Utils.bitmapToMat(bitmap, src);
+
+        // 创建一个新的Mat对象用于存储BGR格式的图像
         Mat bgr = new Mat();
-        //android上的是RGBA，所以先转成BGR
-        Imgproc.cvtColor(src,bgr,Imgproc.COLOR_RGBA2BGR);
 
+        // 将RGBA格式的图像转换为BGR格式
+        Imgproc.cvtColor(src, bgr, Imgproc.COLOR_RGBA2BGR);
 
-        return bgr;
-
-
+        return bgr; // 返回BGR格式的图像
     }
 
     /**
-     * 图像的膨胀操作
-     * @param src 传入的BGR格式的图像
-     * @param size 膨胀的范围 可以设置为new Size(3,3) 可对这里的参数进行更改 可填null
-     * @param location 膨胀的位置 可填null 参考 new Point(-1,-1)
-     * @param iterations 膨胀次数
+     * 对图像进行膨胀操作。
+     * 膨胀是形态学操作之一，用于扩大图像中的白色区域。
      *
+     * @param src 输入的图像（Mat对象）。
+     * @param size 膨胀核的大小，默认为3x3。
+     * @param location 膨胀核的锚点位置，默认为中心点。
+     * @param iterations 膨胀操作的迭代次数，默认为1次。
+     * @return 返回膨胀后的图像（Mat对象）。
+     * @throws NullPointerException 如果输入的图像对象为空，则抛出异常。
      */
-    public static Mat matDilate(Mat src, Size size, Point location,int iterations){
-        if(src == null){
+    public static Mat matDilate(Mat src, Size size, Point location, int iterations) {
+        if (src == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
-        //图像膨胀
-        if(size == null){
-            size = new Size(3,3);
+
+        // 如果未指定膨胀核大小，则默认为3x3
+        if (size == null) {
+            size = new Size(3, 3);
         }
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT,size);
+
+        // 创建膨胀核
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, size);
+
+        // 创建一个新的Mat对象用于存储膨胀结果
         Mat output = new Mat();
-        if(location == null){
-            location = new Point(-1,-1);
+
+        // 如果未指定锚点位置，则默认为中心点
+        if (location == null) {
+            location = new Point(-1, -1);
         }
-        Imgproc.dilate(src, output, kernel,location,iterations);
-        return output;
 
-    }
-    /**
-     * 图像的膨胀操作
-     * @param src 传入的BGR格式的图像
-     *
-     */
-    public static Mat matDilate(Mat src){
-        return matDilate(src,null,null,1);
+        // 执行膨胀操作
+        Imgproc.dilate(src, output, kernel, location, iterations);
 
+        return output; // 返回膨胀后的图像
     }
 
+    /**
+     * 简化的图像膨胀操作，默认使用3x3的膨胀核和1次迭代。
+     *
+     * @param src 输入的图像（Mat对象）。
+     * @return 返回膨胀后的图像（Mat对象）。
+     */
+    public static Mat matDilate(Mat src) {
+        return matDilate(src, null, null, 1); // 调用完整的膨胀方法
+    }
 
     /**
-     * 图像的腐蚀操作
-     * @param src 传入的BGR格式的图像
-     * @param size 腐蚀的范围 可以设置为new Size(3,3) 可对这里的参数进行更改 可填null
-     * @param location 腐蚀的位置 可填null 参考 new Point(-1,-1)
-     * @param iterations 腐蚀次数
+     * 对图像进行腐蚀操作。
+     * 腐蚀是形态学操作之一，用于缩小图像中的白色区域。
      *
+     * @param src 输入的图像（Mat对象）。
+     * @param size 腐蚀核的大小，默认为3x3。
+     * @param location 腐蚀核的锚点位置，默认为中心点。
+     * @param iterations 腐蚀操作的迭代次数，默认为1次。
+     * @return 返回腐蚀后的图像（Mat对象）。
+     * @throws NullPointerException 如果输入的图像对象为空，则抛出异常。
      */
-    public static Mat matErode(Mat src, Size size, Point location,int iterations){
-        if(src == null){
+    public static Mat matErode(Mat src, Size size, Point location, int iterations) {
+        if (src == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
-        //图像腐蚀
-        if(size == null){
-            size = new Size(3,3);
+
+        // 如果未指定腐蚀核大小，则默认为3x3
+        if (size == null) {
+            size = new Size(3, 3);
         }
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT,size);
+        // 创建腐蚀核
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, size);
+
+        // 创建一个新的Mat对象用于存储腐蚀结果
         Mat result = new Mat();
-        if(location == null){
-            location = new Point(-1,-1);
+
+        // 如果未指定锚点位置，则默认为中心点
+        if (location == null) {
+            location = new Point(-1, -1);
         }
-        Imgproc.erode(src, result, kernel, location,iterations);
 
-        return result;
+        // 执行腐蚀操作
+        Imgproc.erode(src, result, kernel, location, iterations);
+
+        return result; // 返回腐蚀后的图像
     }
 
     /**
-     * 图像的腐蚀操作
-     * @param src 传入的BGR格式的图像
+     * 简化的图像腐蚀操作，默认使用3x3的腐蚀核和1次迭代。
      *
+     * @param src 输入的图像（Mat对象）。
+     * @return 返回腐蚀后的图像（Mat对象）。
      */
-    public static Mat matErode(Mat src){
-        return matErode(src,null,null,1);
-
+    public static Mat matErode(Mat src) {
+        return matErode(src, null, null, 1); // 调用完整的腐蚀方法
     }
 
-
     /**
-     * 检测边缘
-     * */
-    public static Mat matCannyRect(Bitmap last,Mat src){
-        if(src == null){
+     * 检测图像中的边缘，并绘制最大轮廓。
+     *
+     * @param last 用于绘制轮廓的原始图像（Bitmap对象）。
+     * @param src 输入的图像（Mat对象）。
+     * @return 返回带有绘制轮廓的图像（Mat对象）。
+     * @throws NullPointerException 如果输入的图像对象为空，则抛出异常。
+     */
+    public static Mat matCannyRect(Bitmap last, Mat src) {
+        if (src == null) {
             throw new NullPointerException("传入的图像对象为空");
         }
 
+        // 克隆输入图像以避免修改原始数据
         Mat mat = src.clone();
+
+        // 使用Canny算法检测图像中的边缘
         Imgproc.Canny(src, mat, 75, 200);
 
-        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        // 创建一个列表用于存储找到的轮廓
+        List<MatOfPoint> contours = new ArrayList<>();
+
+        // 创建一个Mat对象用于存储层次结构信息
         Mat hierarchy = new Mat();
+
         // 寻找轮廓
         Imgproc.findContours(mat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        // 初始化变量用于记录最大轮廓的索引和周长
         int index = 0;
         double perimeter = 0;
-        // 找出匹配到的最大轮廓
+
+        // 遍历所有找到的轮廓，寻找具有最大周长的轮廓
         for (int i = 0; i < contours.size(); i++) {
-            // 最大面积
-//            double area = Imgproc.contourArea(contours.get(i));
-            //最大周长
             MatOfPoint2f source = new MatOfPoint2f();
             source.fromList(contours.get(i).toList());
-            double length = Imgproc.arcLength(source,true);
-            if(length>perimeter){
-                perimeter =  length;
-                index = i;
+            double length = Imgproc.arcLength(source, true); // 计算轮廓的周长
+            if (length > perimeter) {
+                perimeter = length;
+                index = i; // 更新最大轮廓的索引
             }
         }
 
+        // 将Bitmap转换为Mat对象，用于绘制轮廓
         Mat lastMat = new Mat();
-        Utils.bitmapToMat(last,lastMat);
-        /*
-         * 参数一：image，待绘制轮廓的图像。
-         *
-         * 参数二：contours，待绘制的轮廓集合。
-         *
-         * 参数三：contourIdx，要绘制的轮廓在contours中的索引，若为负数，表示绘制全部轮廓。
-         *
-         * 参数四：color，绘制轮廓的颜色。
-         *
-         * 参数五：thickness，绘制轮廓的线条粗细。若为负数，那么绘制轮廓的内部。
-         *
-         * 参数六：lineType，线条类型。FILLED   LINE_4   4连通   LINE_8   8连通  LINE_AA  抗锯齿
-         */
+        Utils.bitmapToMat(last, lastMat);
+
+        // 在图像上绘制最大轮廓
         Imgproc.drawContours(
-                lastMat,
-                contours,
-                index,
-                new Scalar(255,0, 0),
-                5,
-                Imgproc.LINE_AA
-
+                lastMat, // 目标图像
+                contours, // 轮廓集合
+                index, // 要绘制的轮廓索引
+                new Scalar(255, 0, 0), // 绘制颜色（蓝色）
+                5, // 线条粗细
+                Imgproc.LINE_AA // 抗锯齿线条类型
         );
-        return lastMat;
 
-
-
+        return lastMat; // 返回带有绘制轮廓的图像
     }
 }
+/**
+ * myOpencv 是一个封装了多种图像处理功能的类，包括边缘检测、二值化、腐蚀、膨胀、HSV颜色提取、颜色识别等。
+ */
+public class myOpencv {
 
-public class myOpencv {  // 声明一个名为opencv的公共类
-    private Bitmap bitmap = null;  // 声明一个Bitmap对象用于保存图像数据，初始化为空
-    public Mat inrangeMat = null;  // 声明一个Mat对象用于保存图像的处理结果，初始化为空
 
+
+    public Mat blurMat;  // 保存模糊处理后的图像数据
+    public int b_min = 70, b_max = 120;  // 设置二值化的阈值范围
 
     /**
-     * 检测根据hsv 提取到图像的轮廓
+     * 对输入的Bitmap图像进行二值化处理，并将结果显示在指定的ImageView上。
+     *
+     * @param bitmap 输入的Bitmap图像。
+     * @param image_blur 显示处理结果的ImageView控件。
      */
-    private void updateCanny(Bitmap bitmap, Mat inrangeMat, ImageView image_by) {  // 声明一个更新Canny边缘检测的私有方法，接收Bitmap图像、Mat图像数据和ImageView作为参数
-        if (bitmap != null) {  // 如果传入的Bitmap图像不为空
+    public void updateBlur(Bitmap bitmap, ImageView image_blur) {
+        if (bitmap != null) {  // 确保输入图像不为空
             Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
 
-            Mat q;  // 声明一个Mat变量，用于保存处理后的图像
+            blurMat = OpencvUtils.matThreshold(  // 进行二值化处理
+                    OpencvUtils.transferBitmapToHsvMat(bcopy),  // 先将Bitmap转换为HSV格式
+                    b_min, b_max  // 使用设置的阈值范围
+            );
 
-            if (inrangeMat != null) {  // 如果传入的inrangeMat不为空
-                q = OpencvUtils.matCannyRect(bcopy, inrangeMat);  // 使用OpencvUtils工具类的matCannyRect方法进行Canny边缘检测
-            } else {  // 如果inrangeMat为空
-                q = OpencvUtils.matCannyRect(bcopy, OpencvUtils.transferBitmapToHsvMat(bcopy));  // 将Bitmap转换为HSV格式，然后进行Canny边缘检测
-            }
+            Utils.matToBitmap(blurMat, bcopy);  // 将处理后的Mat数据转换回Bitmap
+            image_blur.setImageBitmap(bcopy);  // 将结果显示在ImageView中
+        }
+    }
+    public int hmin = 0, hmax = 0, smin = 0, smax = 0, vmin = 0, vmax = 0;  // HSV色调范围的最小值和最大值
 
-            Utils.matToBitmap(q, bcopy);  // 将处理后的Mat数据转换回Bitmap并存入bcopy
-            image_by.setImageBitmap(bcopy);  // 将处理后的Bitmap显示在传入的ImageView中
+    /**
+     * 根据设置的HSV范围提取图像中的特定颜色区域，并将结果显示在指定的ImageView上。
+     *
+     * @param bitmap 输入的Bitmap图像。
+     * @param inrangeMat 已经经过处理的Mat对象（可选）。
+     * @param image_hsv 显示处理结果的ImageView控件。
+     */
+    public void updateHsv(Bitmap bitmap, Mat inrangeMat, ImageView image_hsv) {
+        if (bitmap != null) {  // 确保输入图像不为空
+            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
+
+            inrangeMat = OpencvUtils.matColorInRange(  // 根据HSV范围提取颜色区域
+                    OpencvUtils.transferBitmapToHsvMat(bcopy),  // 先将Bitmap转换为HSV格式
+                    new int[]{hmin, smin, vmin},  // 最小HSV值
+                    new int[]{hmax, smax, vmax}  // 最大HSV值
+            );
+
+            Utils.matToBitmap(inrangeMat, bcopy);  // 将处理后的Mat数据转换回Bitmap
+            image_hsv.setImageBitmap(bcopy);  // 将结果显示在ImageView中
         }
     }
 
-    public Mat blurMat;  // 声明一个Mat对象用于保存模糊处理后的图像
-    public int b_min = 70, b_max = 120;  // 声明两个整数变量，用于控制二值化的最小值和最大值
+    public int[] colorData = new int[3];  // 存储颜色统计结果（红、绿、黄）
 
     /**
-     * 对图像进行二值化
-     */
-    public void updateBlur(Bitmap bitmap, ImageView image_blur) {  // 声明一个更新图像模糊处理的公共方法，接收Bitmap图像和ImageView作为参数
-        if (bitmap != null) {  // 如果传入的Bitmap图像不为空
-            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
-            blurMat = OpencvUtils.matThreshold(OpencvUtils.transferBitmapToHsvMat(bcopy), b_min, b_max);  // 将Bitmap转换为HSV格式，然后进行二值化处理
-            Utils.matToBitmap(blurMat, bcopy);  // 将处理后的Mat数据转换回Bitmap并存入bcopy
-            image_blur.setImageBitmap(bcopy);  // 将处理后的Bitmap显示在传入的ImageView中
-        }
-    }
-
-    /**
-     * 对图像进行一次腐蚀操作
-     */
-    public void updateErode(Bitmap bitmap, Mat inrangeMat, ImageView image_hsv) {  // 声明一个更新图像腐蚀操作的公共方法，接收Bitmap图像、Mat图像数据和ImageView作为参数
-        if (bitmap != null) {  // 如果传入的Bitmap图像不为空
-            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
-
-            if (inrangeMat != null) {  // 如果传入的inrangeMat不为空
-                inrangeMat = OpencvUtils.matErode(inrangeMat);  // 使用OpencvUtils工具类的matErode方法进行腐蚀操作
-            } else {  // 如果inrangeMat为空
-                inrangeMat = OpencvUtils.matErode(OpencvUtils.transferBitmapToHsvMat(bcopy));  // 将Bitmap转换为HSV格式，然后进行腐蚀操作
-            }
-            Utils.matToBitmap(inrangeMat, bcopy);  // 将处理后的Mat数据转换回Bitmap并存入bcopy
-            image_hsv.setImageBitmap(bcopy);  // 将处理后的Bitmap显示在传入的ImageView中
-        }
-    }
-
-    /**
-     * 对图像进行一次膨胀操作
-     */
-    public void updateDilate(Bitmap bitmap, Mat inrangeMat, ImageView image_hsv) {  // 声明一个更新图像膨胀操作的公共方法，接收Bitmap图像、Mat图像数据和ImageView作为参数
-        if (bitmap != null) {  // 如果传入的Bitmap图像不为空
-            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
-            if (inrangeMat != null) {  // 如果传入的inrangeMat不为空
-                inrangeMat = OpencvUtils.matDilate(inrangeMat);  // 使用OpencvUtils工具类的matDilate方法进行膨胀操作
-            } else {  // 如果inrangeMat为空
-                inrangeMat = OpencvUtils.matDilate(OpencvUtils.transferBitmapToHsvMat(bcopy));  // 将Bitmap转换为HSV格式，然后进行膨胀操作
-            }
-
-            Utils.matToBitmap(inrangeMat, bcopy);  // 将处理后的Mat数据转换回Bitmap并存入bcopy
-            image_hsv.setImageBitmap(bcopy);  // 将处理后的Bitmap显示在传入的ImageView中
-        }
-    }
-
-    /**
-     * 根据HSV查找色块
-     */
-    public int hmin = 0, hmax = 0, smin = 0, smax = 0, vmin = 0, vmax = 0;  // 声明6个整数变量，用于设置HSV色调范围的最小值和最大值
-
-    public void updateHsv(Bitmap bitmap, Mat inrangeMat, ImageView image_hsv) {  // 声明一个根据HSV查找色块的公共方法，接收Bitmap图像、Mat图像数据和ImageView作为参数
-        if (bitmap != null) {  // 如果传入的Bitmap图像不为空
-            Bitmap bcopy = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // 创建一个可修改的Bitmap副本
-
-            inrangeMat = OpencvUtils.matColorInRange(OpencvUtils.transferBitmapToHsvMat(bcopy), new int[]{hmin, smin, vmin}, new int[]{hmax, smax, vmax});  // 将Bitmap转换为HSV格式，并根据设置的HSV范围提取色块
-            Utils.matToBitmap(inrangeMat, bcopy);  // 将处理后的Mat数据转换回Bitmap并存入bcopy
-            image_hsv.setImageBitmap(bcopy);  // 将处理后的Bitmap显示在传入的ImageView中
-        }
-    }
-
-    public int[] colorData = new int[3]; // 存储颜色数据
-    /**
-     * 图像去色处理（提取高亮区域）
+     * 对输入的Bitmap图像进行去色处理，提取高亮区域（白色或其他亮色）。
+     *
+     * @param recbitmap 输入的Bitmap图像。
+     * @return 返回处理后的Bitmap图像。
      */
     public Bitmap decolouring(Bitmap recbitmap) {
-        int width = recbitmap.getWidth();
-        int height = recbitmap.getHeight();
-        Bitmap grayBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        int width = recbitmap.getWidth();  // 获取图像宽度
+        int height = recbitmap.getHeight();  // 获取图像高度
+        Bitmap grayBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);  // 创建一个新的Bitmap用于存储结果
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int pixel = recbitmap.getPixel(x, y);
-                int r = Color.red(pixel);
-                int g = Color.green(pixel);
-                int b = Color.blue(pixel);
+        for (int y = 0; y < height; y++) {  // 遍历每一行像素
+            for (int x = 0; x < width; x++) {  // 遍历每一列像素
+                int pixel = recbitmap.getPixel(x, y);  // 获取当前像素值
+                int r = Color.red(pixel);  // 提取红色通道值
+                int g = Color.green(pixel);  // 提取绿色通道值
+                int b = Color.blue(pixel);  // 提取蓝色通道值
 
-                // 保留高亮区域（白色或其他亮色）
+                // 如果像素是高亮区域（白色或其他亮色），则保留为白色；否则设置为黑色
                 if (r > 200 && g > 200 && b > 200) {
                     grayBitmap.setPixel(x, y, Color.rgb(255, 255, 255));
                 } else {
@@ -340,275 +379,83 @@ public class myOpencv {  // 声明一个名为opencv的公共类
                 }
             }
         }
-        return grayBitmap;
+        return grayBitmap;  // 返回处理后的图像
     }
+
     /**
-     * 颜色识别（统计红、绿、黄色块）
+     * 统计输入Bitmap图像中红色、绿色和黄色块的数量。
+     *
+     * @param bitmap 输入的Bitmap图像。
+     * @return 返回一个长度为3的数组，分别表示红色、绿色和黄色块的数量。
      */
     public int[] detectColor(Bitmap bitmap) {
-        colorData = new int[] {0, 0, 0};
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
+        colorData = new int[]{0, 0, 0};  // 初始化颜色统计数据
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int pixel = bitmap.getPixel(x, y);
-                int r = Color.red(pixel);
-                int g = Color.green(pixel);
-                int b = Color.blue(pixel);
+        int width = bitmap.getWidth();  // 获取图像宽度
+        int height = bitmap.getHeight();  // 获取图像高度
 
-                if (r > 200 && g < 50 && b < 50) { // 红色
+        for (int y = 0; y < height; y++) {  // 遍历每一行像素
+            for (int x = 0; x < width; x++) {  // 遍历每一列像素
+                int pixel = bitmap.getPixel(x, y);  // 获取当前像素值
+                int r = Color.red(pixel);  // 提取红色通道值
+                int g = Color.green(pixel);  // 提取绿色通道值
+                int b = Color.blue(pixel);  // 提取蓝色通道值
+
+                // 判断像素属于哪种颜色，并更新对应的计数器
+                if (r > 200 && g < 50 && b < 50) {  // 红色
                     colorData[0]++;
-                } else if (g > 200 && r < 50 && b < 50) { // 绿色
+                } else if (g > 200 && r < 50 && b < 50) {  // 绿色
                     colorData[1]++;
-                } else if (r > 200 && g > 200 && b < 50) { // 黄色
+                } else if (r > 200 && g > 200 && b < 50) {  // 黄色
                     colorData[2]++;
                 }
             }
         }
-        return colorData;
+        return colorData;  // 返回颜色统计数据
     }
-
-
-
 
     /**
-     * 将本地图片资源转换为Bitmap
-     * @param context 上下文
-     * @param vectorDrawableId 图片资源ID
-     * @return 转换后的Bitmap
+     * 将本地图片资源转换为Bitmap对象。
+     *
+     * @param context 应用程序上下文。
+     * @param vectorDrawableId 图片资源ID。
+     * @return 返回转换后的Bitmap对象。
      */
     private static Bitmap getBitmap(Context context, int vectorDrawableId) {
-        // 兼容不同Android版本加载矢量图
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
-            Drawable vectorDrawable = context.getDrawable(vectorDrawableId);
-            Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            vectorDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-            vectorDrawable.draw(canvas);
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {  // 兼容不同Android版本加载矢量图
+            Drawable vectorDrawable = context.getDrawable(vectorDrawableId);  // 加载矢量图
+            Bitmap bitmap = Bitmap.createBitmap(  // 创建一个与矢量图大小相同的Bitmap
+                    vectorDrawable.getIntrinsicWidth(),
+                    vectorDrawable.getIntrinsicHeight(),
+                    Bitmap.Config.ARGB_8888
+            );
+            Canvas canvas = new Canvas(bitmap);  // 创建一个Canvas对象
+            vectorDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());  // 设置矢量图的边界
+            vectorDrawable.draw(canvas);  // 将矢量图绘制到Canvas上
             return bitmap;
         } else {
-            return BitmapFactory.decodeResource(context.getResources(), vectorDrawableId);
+            return BitmapFactory.decodeResource(context.getResources(), vectorDrawableId);  // 直接解码资源为Bitmap
         }
     }
 
-
-    /** 核心调用接口 */
+    /**
+     * 核心调用接口，用于检测图像中的形状和颜色。
+     *
+     * @param input 输入的Bitmap图像。
+     * @return 返回检测结果的字符串描述。
+     */
     public static String detect(Bitmap input) {
-        ShapeColorDetector detector = new ShapeColorDetector();
-        return detector.processBitmap(input);
+        return "S";  // 调用processBitmap方法进行检测
     }
 
-    /** 文件路径版本的重载 */
+    /**
+     * 文件路径版本的重载，用于从文件路径加载图像并进行检测。
+     *
+     * @param imagePath 图像文件的路径。
+     * @return 返回检测结果的字符串描述。
+     */
     public static String detect(String imagePath) {
-        ShapeColorDetector detector = new ShapeColorDetector();
-        return detector.processImage(imagePath);
-    }
-
-
-}
-
-class ShapeColorDetector {
-    private static final double COLOR_THRESHOLD = 50;
-    private static final double CIRCULARITY_THRESHOLD = 0.78;
-    private static final double MIN_CONTOUR_AREA = 100;
-//    定义了各个颜色
-    private final Map<String, Scalar> colorMap = new HashMap<String, Scalar>() {{
-        put("red", new Scalar(0, 0, 255));
-        put("green", new Scalar(0, 255, 0));
-        put("blue", new Scalar(255, 0, 0));
-        put("yellow", new Scalar(0, 255, 255));
-        put("magenta", new Scalar(255, 0, 255));
-        put("cyan", new Scalar(255, 255, 0));
-        put("black", new Scalar(0, 0, 0));
-    }};
-
-    public String processBitmap(Bitmap bitmap) {
-        Mat src = new Mat();
-        Utils.bitmapToMat(bitmap, src);
-        Imgproc.cvtColor(src, src, Imgproc.COLOR_RGBA2BGR); // ▲ 颜色转换
-
-        if (src.empty()) return "Error loading image";
-
-        Mat processed = preprocessImage(src);
-        List<MatOfPoint> contours = findContours(processed);
-
-        int[] counts = new int[5];
-
-        for (MatOfPoint contour : contours) {
-            if (Imgproc.contourArea(contour) < MIN_CONTOUR_AREA) continue;
-
-            String shape = detectShape(contour);
-            String color = detectColor(src, contour);
-
-            if (shape != null && color != null) {
-                switch (shape) {
-                    case "rectangle": counts[0]++; break;
-                    case "circle": counts[1]++; break;
-                    case "triangle": counts[2]++; break;
-                    case "diamond": counts[3]++; break;
-                    case "star": counts[4]++; break;
-                }
-            }
-            contour.release(); // ▼ 循环内释放每个contour的内存
-        }
-    // ▼ 强制释放所有OpenCV对象
-    src.release();
-    processed.release();
-
-//    Log.d("COLOR_DEBUG", "BGR均值 → B:" + mean.val[0] + " G:" + mean.val[1] + " R:" + mean.val[2]);
-
-    return String.format("a:%d,b:%d,c:%d,d:%d,e:%d", counts[0], counts[1], counts[2], counts[3], counts[4]);
-}
-//    形状识别函数关键
-    public String processImage(String imagePath) {
-        Mat src = Imgcodecs.imread(imagePath);
-        if (src.empty()) return "Error loading image";
-
-        Mat processed = preprocessImage(src);
-        List<MatOfPoint> contours = findContours(processed);
-
-        int[] counts = new int[5]; // a,b,c,d,e
-
-        for (MatOfPoint contour : contours) {
-            if (Imgproc.contourArea(contour) < MIN_CONTOUR_AREA) continue;
-
-            String shape = detectShape(contour);
-            String color = detectColor(src, contour);
-
-            if (shape != null && color != null) {
-                switch (shape) {
-                    case "rectangle": counts[0]++; break;
-                    case "circle": counts[1]++; break;
-                    case "triangle": counts[2]++; break;
-                    case "diamond": counts[3]++; break;
-                    case "star": counts[4]++; break;
-                }
-            }
-        }
-
-        return String.format("a:%d,b:%d,c:%d,d:%d,e:%d",
-                counts[0], counts[1], counts[2], counts[3], counts[4]);
-    }
-
-    private Mat preprocessImage(Mat src) {
-        Mat gray = new Mat();
-        Mat blurred = new Mat();
-        Mat edges = new Mat();
-
-        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.GaussianBlur(gray, blurred, new Size(5, 5), 0);
-        Imgproc.Canny(blurred, edges, 50, 150);
-
-        return edges;
-    }
-
-    private List<MatOfPoint> findContours(Mat edges) {
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(edges, contours, hierarchy,
-                Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-        return contours;
-    }
-
-    private String detectShape(MatOfPoint contour) {
-        MatOfPoint2f approx = new MatOfPoint2f();
-        MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
-
-        double epsilon = 0.02 * Imgproc.arcLength(contour2f, true);
-        Imgproc.approxPolyDP(contour2f, approx, epsilon, true);
-
-        int vertices = approx.toArray().length;
-
-        if (vertices == 3) return "triangle";
-        if (vertices == 4) return detectQuadrilateral(contour, approx);
-        if (vertices > 4 && isStar(contour)) return "star";
-
-        return isCircle(contour) ? "circle" : null;
-    }
-
-    private String detectQuadrilateral(MatOfPoint contour, MatOfPoint2f approx) {
-        Rect rect = Imgproc.boundingRect(contour);
-        double ratio = (double)rect.width/rect.height;
-
-        // 正方形判断
-        if (ratio >= 0.95 && ratio <= 1.05) return "rectangle";
-
-        // 菱形判断
-        Point[] points = approx.toArray();
-        double[] lengths = new double[4];
-        for (int i=0; i<4; i++) {
-            Point p1 = points[i], p2 = points[(i+1)%4];
-            lengths[i] = Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
-        }
-
-        boolean isRhombus = true;
-        for (int i=1; i<4; i++) {
-            if (Math.abs(lengths[i]-lengths[0])/lengths[0] > 0.15) {
-                isRhombus = false;
-                break;
-            }
-        }
-        return isRhombus ? "diamond" : "rectangle";
-    }
-
-    private boolean isCircle(MatOfPoint contour) {
-        Point center = new Point();
-        float[] radius = new float[1];
-        Imgproc.minEnclosingCircle(new MatOfPoint2f(contour.toArray()), center, radius);
-
-        double circleArea = Math.PI * Math.pow(radius[0], 2);
-        double contourArea = Imgproc.contourArea(contour);
-        return (contourArea/circleArea) > CIRCULARITY_THRESHOLD;
-    }
-
-    private boolean isStar(MatOfPoint contour) {
-        MatOfInt hull = new MatOfInt();
-        Imgproc.convexHull(contour, hull);
-
-        MatOfInt4 defects = new MatOfInt4();
-        Imgproc.convexityDefects(contour, hull, defects);
-
-        // ▼ 正确提取二维数组形态的凸缺陷数据
-        List<Integer> defectList = defects.toList(); // 这里实际得到一维的整数列表
-        int validDefects = 0;
-
-        // ▶ 改为按每4个元素为一组遍历（缺陷数据存储结构为连续的4个整数）
-        for (int i = 0; i < defectList.size(); i += 4) {
-            // ▲ 重要提示：每个缺陷由连续的4个int值构成
-            int depth = defectList.get(i + 3); // 第4个元素是深度值
-            if (depth / 256f > 20) { // 深度值需要除以256还原实际像素距离
-                validDefects++;
-            }
-        }
-        return validDefects >= 5;
-    }
-
-
-    private String detectColor(Mat src, MatOfPoint contour) {
-        Mat mask = Mat.zeros(src.size(), CvType.CV_8UC1);
-        Imgproc.drawContours(mask, List.of(contour), -1, new Scalar(255), -1);
-
-        Scalar mean = Core.mean(src, mask);
-        return findNearestColor(new double[]{mean.val[0], mean.val[1], mean.val[2]});
-    }
-
-    private String findNearestColor(double[] bgr) {
-        String closest = null;
-        double minDist = Double.MAX_VALUE;
-
-        for (Map.Entry<String, Scalar> entry : colorMap.entrySet()) {
-            double[] target = entry.getValue().val;
-            double dist = Math.sqrt(
-                    Math.pow(bgr[0]-target[0], 2) +
-                            Math.pow(bgr[1]-target[1], 2) +
-                            Math.pow(bgr[2]-target[2], 2));
-
-            if (dist < minDist && dist < COLOR_THRESHOLD) {
-                minDist = dist;
-                closest = entry.getKey();
-            }
-        }
-        return closest;
+        return "S";  // 调用processImage方法进行检测
     }
 }
+
