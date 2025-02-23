@@ -1,136 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- 图片显示 -->
-        <ImageView
-            android:id="@+id/imageView"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:scaleType="fitCenter"
-            android:background="@android:color/darker_gray"/>
-
-        <!-- 参数控制 -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="二值化阈值 (0-255)"
-            android:layout_marginTop="8dp"/>
-
-        <!-- 二值化阈值滑块 -->
-        <SeekBar
-            android:id="@+id/sbThreshold"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="150"
-            app:layout_constraintTop_toBottomOf="@+id/imageView" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="霍夫参数1 (0-255)"
-            android:layout_marginTop="8dp"/>
-        <!-- 霍夫参数1滑块 -->
-        <SeekBar
-            android:id="@+id/sbParam1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="100"
-            app:layout_constraintTop_toBottomOf="@+id/sbThreshold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="霍夫参数2(0-255)"
-            android:layout_marginTop="8dp"/>
-
-        <!-- 霍夫参数2滑块 -->
-        <SeekBar
-            android:id="@+id/sbParam2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="175"
-            app:layout_constraintTop_toBottomOf="@+id/sbParam1" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="最小轮廓面积滑块 (0-5000)"
-            android:layout_marginTop="8dp"/>
-        <!-- 最小轮廓面积滑块 -->
-        <SeekBar
-            android:id="@+id/sbMinContourArea"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="5000"
-            android:progress="1000"
-            app:layout_constraintTop_toBottomOf="@+id/sbParam2" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="霍夫最小半径 (0-300)"
-            android:layout_marginTop="8dp"/>
-        <!-- 霍夫最小半径滑块 -->
-        <SeekBar
-            android:id="@+id/sbMinRadius"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="300"
-            android:progress="0"
-            app:layout_constraintTop_toBottomOf="@+id/sbMinContourArea" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="霍夫最大半径 (0-500)"
-            android:layout_marginTop="8dp"/>
-        <!-- 霍夫最大半径滑块 -->
-        <SeekBar
-            android:id="@+id/sbMaxRadius"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="500"
-            android:progress="0"
-            app:layout_constraintTop_toBottomOf="@+id/sbMinRadius" />
+        android:orientation="vertical">
 
         <!-- 操作按钮 -->
-        <Button
-            android:id="@+id/selectImageButton"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="选择图片"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnSelect"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="选择图片"/>
+
+            <Button
+                android:id="@+id/btnAnalyze"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="开始分析"/>
+        </LinearLayout>
+
+        <!-- 原图显示 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="原图"
+            android:textSize="16sp"
+            android:layout_marginTop="8dp"/>
+
+        <ImageView
+            android:id="@+id/imageViewOriginal"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:scaleType="fitCenter"/>
+
+        <!-- 二值化结果 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="二值化处理"
+            android:textSize="16sp"
             android:layout_marginTop="16dp"/>
 
-        <Button
-            android:id="@+id/btnDetect"
+        <ImageView
+            android:id="@+id/imageViewBinary"
             android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:scaleType="fitCenter"/>
+
+        <!-- 轮廓特征点 -->
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="开始识别"
-            android:layout_marginTop="8dp"/>
-        <Button
-            android:id="@+id/btnClear"
+            android:text="特征点连线"
+            android:textSize="16sp"
+            android:layout_marginTop="16dp"/>
+
+        <ImageView
+            android:id="@+id/imageViewContours"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="清除识别结果"
-            android:layout_marginTop="8dp"/>
-        <!-- 结果显示 -->
+            android:layout_height="150dp"
+            android:scaleType="fitCenter"/>
+
+        <!-- 结果输出 -->
         <TextView
             android:id="@+id/resultTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:textSize="16sp"/>
-
     </LinearLayout>
 </ScrollView>

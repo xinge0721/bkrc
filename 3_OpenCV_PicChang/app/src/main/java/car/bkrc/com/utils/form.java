@@ -1,11 +1,9 @@
 package car.bkrc.com.utils;
 
 
-import static car.bkrc.com.utils.OpencvUtils.bitmapToMat;
 
 import android.graphics.Bitmap;
 import android.util.Log;
-import android.widget.ImageView;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
@@ -19,11 +17,8 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.imgproc.Moments;
-import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,11 +102,6 @@ class ShapeColorDetector {
 
 
 public class form {
-    // 形状类型常量
-    public static final String TRIANGLE = "Triangle";
-    public static final String RECTANGLE = "Rectangle";
-    public static final String STAR = "Star";
-    public static final String UNKNOWN = "Unknown";
 
     static {
         if (!OpenCVLoader.initDebug()) {
@@ -122,11 +112,13 @@ public class form {
         }
     }
 
-    /**
-     * 识别图像中的形状（矩形、三角形、五角星）
-     * @param src 输入的图像（BGR格式）
-     * @return 形状名称的字符串（"Rectangle", "Triangle", "Star", "Unknown"）
-     */
+    // 中文形状常量
+    public static final String TRIANGLE = "三角形";
+    public static final String RECTANGLE = "矩形";
+    public static final String RHOMBUS = "菱形";
+    public static final String STAR = "五角星";
+    public static final String UNKNOWN = "未知";
+
     /**
      * 识别图像中的多个形状并统计数量
      * @param inputBitmap 输入的Bitmap图像
@@ -136,24 +128,19 @@ public class form {
         Map<String, Integer> shapeCounts = new HashMap<String, Integer>() {{
             put(TRIANGLE, 0);
             put(RECTANGLE, 0);
+            put(RHOMBUS, 0);
             put(STAR, 0);
             put(UNKNOWN, 0);
         }};
 
         try {
-            // Bitmap转Mat（使用现有工具类）
             Mat srcMat = OpencvUtils.transferBitmapToHsvMat(inputBitmap);
-
-            // 预处理流程
             Mat processed = preprocessImage(srcMat);
 
-            // 查找轮廓
             List<MatOfPoint> contours = new ArrayList<>();
-            Mat hierarchy = new Mat();
-            Imgproc.findContours(processed, contours, hierarchy,
+            Imgproc.findContours(processed, contours, new Mat(),
                     Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-            // 分析每个轮廓
             for (MatOfPoint contour : contours) {
                 String shapeType = analyzeContour(contour);
                 shapeCounts.put(shapeType, shapeCounts.get(shapeType) + 1);
@@ -162,65 +149,121 @@ public class form {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return shapeCounts;
     }
 
     /**
-     * 图像预处理流程
+     * 改进的图像预处理（添加高斯模糊）
      */
     private static Mat preprocessImage(Mat src) {
-        // 转换为灰度图
+        // 高斯模糊降噪
+        Mat blurred = new Mat();
+        Imgproc.GaussianBlur(src, blurred, new Size(5, 5), 0);
+
         Mat gray = new Mat();
-        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.cvtColor(blurred, gray, Imgproc.COLOR_BGR2GRAY);
 
-        // 二值化
+        // 自适应阈值二值化
         Mat binary = new Mat();
-        Imgproc.threshold(gray, binary, 128, 255, Imgproc.THRESH_BINARY);
+        Imgproc.adaptiveThreshold(gray, binary, 255,
+                Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
+                Imgproc.THRESH_BINARY, 11, 2);
 
-        // 形态学操作（先腐蚀后膨胀）
-        return OpencvUtils.matDilate(OpencvUtils.matErode(binary));
+        // 加强形态学处理
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(binary, binary, Imgproc.MORPH_CLOSE, kernel);
+
+        return binary;
     }
 
     /**
-     * 分析单个轮廓的形状
+     * 改进的形状分析逻辑
      */
     private static String analyzeContour(MatOfPoint contour) {
-        // 忽略小面积轮廓（面积阈值可调整）
-        if (Imgproc.contourArea(contour) < 500) return UNKNOWN;
+        double area = Imgproc.contourArea(contour);
+        if (area < 1000) return UNKNOWN; // 提高面积阈值
 
-        // 多边形近似
         MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
-        double epsilon = 0.02 * Imgproc.arcLength(contour2f, true);
+        double epsilon = 0.015 * Imgproc.arcLength(contour2f, true);
         MatOfPoint2f approx = new MatOfPoint2f();
         Imgproc.approxPolyDP(contour2f, approx, epsilon, true);
 
         int vertices = approx.toArray().length;
 
-        // 形状判断
+        // 形状判断逻辑
         if (vertices == 3) {
             return TRIANGLE;
         } else if (vertices == 4) {
-            return isRectangle(approx) ? RECTANGLE : UNKNOWN;
+            if (isRectangle(approx)) {
+                return RECTANGLE;
+            } else if (isRhombus(approx)) {
+                return RHOMBUS;
+            }
         } else if (vertices >= 5 && vertices <= 10) {
-            return isStar(approx) ? STAR : UNKNOWN;
+            if (isStar(approx)) {
+                return STAR;
+            }
         }
         return UNKNOWN;
     }
 
-    // 验证是否为矩形（检查角度）
+    /**
+     * 新增菱形判断（四边长度相等）
+     */
+    private static boolean isRhombus(MatOfPoint2f approx) {
+        Point[] points = approx.toArray();
+        if (points.length != 4) return false;
+
+        // 计算四边长度
+        double[] sides = new double[4];
+        for (int i = 0; i < 4; i++) {
+            Point p1 = points[i];
+            Point p2 = points[(i+1)%4];
+            sides[i] = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+
+        // 允许边长最大差异不超过15%
+        double avg = (sides[0] + sides[1] + sides[2] + sides[3]) / 4;
+        for (double side : sides) {
+            if (Math.abs(side - avg) / avg > 0.15) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 改进矩形验证（直角验证）
+     */
     private static boolean isRectangle(MatOfPoint2f approx) {
         Point[] points = approx.toArray();
-        double totalAngle = 0;
+        if (points.length != 4) return false;
+
+        double totalAngleError = 0;
         for (int i = 0; i < 4; i++) {
             Point p1 = points[i];
             Point p2 = points[(i+1)%4];
             Point p3 = points[(i+2)%4];
             double angle = Math.toDegrees(getAngle(p1, p2, p3));
-            totalAngle += Math.abs(angle - 90);
+            totalAngleError += Math.abs(angle - 90);
         }
-        return totalAngle < 30; // 允许角度误差
+        return totalAngleError < 25; // 更严格的角度误差
     }
+
+    /**
+     * 五角星判断（凸包面积比）
+     */
+    private static boolean isStar(MatOfPoint2f approx) {
+        MatOfPoint points = new MatOfPoint(approx.toArray());
+        MatOfInt hull = new MatOfInt();
+        Imgproc.convexHull(points, hull, false);
+
+        double contourArea = Imgproc.contourArea(approx);
+        MatOfPoint hullPoints = new MatOfPoint();
+        hullPoints.fromList(points.toList().subList(0, hull.rows()));
+        double hullArea = Imgproc.contourArea(hullPoints);
+
+        return (hullArea - contourArea) / hullArea > 0.3; // 凹面占比需超过30%
+    }
+
 
     // 计算三个点的夹角
     private static double getAngle(Point p1, Point p2, Point p3) {
@@ -283,20 +326,14 @@ public class form {
         Moments m = Imgproc.moments(contour);
         return new Point(m.m10/m.m00, m.m01/m.m00);
     }
-    // 判断是否为五角星（通过凸包缺陷）
-    private static boolean isStar(MatOfPoint2f approx) {
-        MatOfPoint points = new MatOfPoint(approx.toArray());
-        MatOfInt hull = new MatOfInt();
-        Imgproc.convexHull(points, hull, false);
 
-        // 计算轮廓面积与凸包面积的比值
-        double contourArea = Imgproc.contourArea(approx);
-        MatOfPoint hullPoints = new MatOfPoint();
-        hullPoints.fromList(points.toList().subList(0, hull.rows()));
-        double hullArea = Imgproc.contourArea(hullPoints);
-        double ratio = contourArea / hullArea;
-
-        // 星形通常有较低的比值（凹面多）
-        return ratio < 0.7;
+    public static String getChineseResult(Map<String, Integer> counts) {
+        return String.format("三角形:%d 矩形:%d 菱形:%d 五角星:%d 未知:%d",
+                counts.get(TRIANGLE),
+                counts.get(RECTANGLE),
+                counts.get(RHOMBUS),
+                counts.get(STAR),
+                counts.get(UNKNOWN));
     }
+
 }
